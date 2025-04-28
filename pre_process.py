@@ -129,7 +129,7 @@ def add_date_features(df: pd.DataFrame) -> pd.DataFrame:
     df['day_of_week'] = df['timestamp'].dt.dayofweek
     df['week_of_year'] = df['timestamp'].dt.isocalendar().week.apply(int)
     df['day_of_year'] = df['timestamp'].dt.dayofyear
-    df['is_weekend'] = df['day_of_week'].apply(lambda x: 1 if x >= 5 else 0)
+    df['is_weekend'] = df['day_of_week'].apply(lambda x: 1 if x > 5 else 0)
     df['is_month_beginning'] = df['timestamp'].dt.is_month_start.astype(int)
     df['is_month_end'] = df['timestamp'].dt.is_month_end.astype(int)
 
