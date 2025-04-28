@@ -53,10 +53,10 @@ def split_train_test(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     split the data in two diffrent dataset one for train and the other
     for test. i want the split ratio to 0.8 for train and 0.2 for test
     args:
-        df: pd.DateFrame
+        df: pd.DataFrame
     return:
-        tr_df: pd.DateFrame, the train dataframes
-        te_df: pd.DateFrame, the test dataframes
+        tr_df: pd.DataFrame, the train dataframes
+        te_df: pd.DataFrame, the test dataframes
     """
     train_size = int(len(df) * 0.8)
     train_df = df[:train_size]
