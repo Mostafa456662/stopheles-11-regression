@@ -1,6 +1,6 @@
 import pandas as pd
 import sweetviz as sv
-from weather_data import *
+from dates import *
 def load_data(input_path: str) -> pd.DataFrame:
     """
     This functuion loads the data from the input path
@@ -77,6 +77,8 @@ def calculate_holiday_distances(df: pd.DataFrame, holidays: list) -> pd.DataFram
     days_to_next = []
     days_since_last = []
 
+    
+
     for doy in df['day_of_year']:
         future_holidays = [h - doy for h in holiday_days if h - doy >= 0]
         past_holidays = [doy - h for h in holiday_days if doy - h >= 0]
@@ -132,13 +134,6 @@ def add_date_features(df: pd.DataFrame) -> pd.DataFrame:
     df['is_month_end'] = df['timestamp'].dt.is_month_end.astype(int)
 
     # Add seasons based on month 
-    season_map = {1: 'Winter', 2: 'Winter', 3: 'Spring', 4: 'Spring', 5: 'Spring', 6: 'Summer', 
-                  7: 'Summer', 8: 'Summer', 9: 'Fall', 10: 'Fall', 11: 'Fall', 12: 'Winter'}
-    
-#     df["summer"] np.where(df['month'] in [6,7,8], 1, 0)
-#     df["spring"] np.where(df['month'] in [3,4,5], 1, 0)
-#     df["winter"] np.where(df['month'] in [12,1,2], 1, 0)
-#     df["fall"] np.where(df['month'] in [9,10,11], 1, 0)
     # represent each season occurring as 1, and 0 otherwise
     df["summer"]=df["month"].apply(lambda x: 1 if season_map[x]=="Summer" else 0)
     df["spring"]=df["month"].apply(lambda x: 1 if season_map[x]=="Spring" else 0)
@@ -146,8 +141,8 @@ def add_date_features(df: pd.DataFrame) -> pd.DataFrame:
     df["fall"]=df["month"].apply(lambda x: 1 if season_map[x]=="Fall" else 0)
     
     
-
-    
+    #check if the day contained a popular football match
+    df['is_matchday'] = df.apply(lambda row: 1 if (row['month'], row['day']) in matchdays else 0, axis=1)
     # Add quarters
     df['quarter'] = df['timestamp'].dt.quarter
     
@@ -161,19 +156,8 @@ def add_date_features(df: pd.DataFrame) -> pd.DataFrame:
     # Seasonal categorization for '2_peak 1_shoulder 0_low season'
     df['season_category'] = df["month"].apply(lambda x: 2 if season_map[x]=="Summer" or  season_map[x]=="Spring"  else (1 if season_map[x]=="Fall" else 0))
     
-    # List of holidays (using month/day format for all years)
-    holidays = [
-        (1, 1),   # January 1 - New Year's Day
-        (1, 6),   # January 6 - Epiphany
-        (4, 15),  # April 15 - Good Friday 
-        (5, 1),   # May 1 - Labour Day
-        (8, 15),  # August 15 - Assumption of the Virgin Mary
-        (10, 12), # October 12 - National Day of Spain
-        (11, 1),  # November 1 - All Saints' Day
-        (12, 6),  # December 6 - Constitution Day
-        (12, 8),  # December 8 - Immaculate Conception
-        (12, 25)  # December 25 - Christmas Day
-    ]
+    
+    
     #assign good and bad weather
    
     
