@@ -60,7 +60,7 @@ def split_train_test(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     train_size = int(len(df) * 0.8)
     train_df = df[:train_size]
-    test_df = df[train_size:].reset_index()
+    test_df = df[train_size:].reset_index(drop = True)
     return train_df, test_df
 
 def calculate_holiday_distances(df: pd.DataFrame, holidays: list) -> pd.DataFrame:
