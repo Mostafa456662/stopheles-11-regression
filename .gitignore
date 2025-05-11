@@ -4,3 +4,7 @@ pre.ipynb
 __pycache__/
 .ipynb_checkpoints/
 process.ipynb
+
+# goba stuff
+uv.lock
+pyproject.toml
