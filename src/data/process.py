@@ -43,15 +43,12 @@ def get_tensor(df: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
         X (np.ndarray): The tensor of features. with shape (n_samples, n_features).
         y (np.ndarray): The tensor of labels. with shape (n_samples, n_labels).
     """
-    # extract label
-    y = torch.tensor(df["spain"].values.reshape(-1, 1), dtype=torch.float32)
-    # extract features
-    X = torch.tensor(df.drop(columns=["spain"]).values, dtype=torch.float32)
-
-    # convert to numpy arrays
-    X = X.numpy()
-    y = y.numpy()
-
+    # Extract labels (spain column) and reshape to (n_samples, 1)
+    y = df["spain"].to_numpy().reshape(-1, 1).astype(np.float32)
+    
+    # Extract features (all columns except spain)
+    X = df.drop(columns=["spain"]).to_numpy().astype(np.float32)
+    
     return X, y
 
 
@@ -142,15 +139,15 @@ def create_timeseries_dataset(dataset, n_past, n_future):
         "The function `create_timeseries_dataset` is not implemented yet. "
         "Please implement the function to create a timeseries dataset."
     )
-    X, Y = [], []
+    X, y = [], []
     total_samples = len(dataset) - n_past - n_future + 1
     for i in range(total_samples):
         X.append(dataset[i : i + n_past])
-        Y.append(dataset[i + n_past : i + n_past + n_future])
-    return np.array(X), np.array(Y)
-    return np.array(X), np.array(Y)
-    return X, Y
-    return np.array(X), np.array(Y)
+        y.append(dataset[i + n_past : i + n_past + n_future])
+    return np.array(X), np.array(y)
+    return np.array(X), np.array(y)
+    return X, y
+    return np.array(X), np.array(y)
     
 
     
