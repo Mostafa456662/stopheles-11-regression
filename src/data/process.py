@@ -4,8 +4,6 @@ from sklearn.manifold import TSNE
 from enum import Enum
 import pandas as pd
 import numpy as np
-import torch
-import torch.nn as nn
 import umap
 
 
@@ -145,9 +143,7 @@ def create_timeseries_dataset(dataset, n_past, n_future):
         X.append(dataset[i : i + n_past])
         y.append(dataset[i + n_past : i + n_past + n_future])
     return np.array(X), np.array(y)
-    return np.array(X), np.array(y)
-    return X, y
-    return np.array(X), np.array(y)
+    
     
 
     
@@ -186,6 +182,13 @@ def adjust_dimensions(
         "The function `adjust_dimensions` is not implemented yet. "
         "Please implement the function to adjust the dimensions of the tensors."
     )
+    
+
+    
+    X_train_reshaped, y_train_adjusted = create_timeseries_dataset(X_train, y_train, n_steps)
+    X_test_reshaped, y_test_adjusted = create_timeseries_dataset(X_test, y_test, n_steps)
+
+    return X_train, X_test_, y_train, y_test
 
 
 def main() -> int:
@@ -237,6 +240,12 @@ def main() -> int:
         y_test=y_te,
         n_steps=n_steps,
     )
+    ### ~~~ EXPLORE ~~~ ###
+    print(f"X_tr.dim = {X_tr.shape}")
+    print(f"X_te.dim = {X_te.shape}")
+    print(f"y_tr.dim = {y_tr.shape}")
+    print(f"y_te.dim = {y_te.shape}")
+    ### ~~~ EXPLORE ~~~ ###
 
     return 0
 
