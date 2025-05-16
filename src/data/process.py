@@ -5,6 +5,7 @@ from enum import Enum
 import pandas as pd
 import numpy as np
 import torch
+import torch.nn as nn
 import umap
 
 
@@ -141,6 +142,20 @@ def create_timeseries_dataset(dataset, n_past, n_future):
         "The function `create_timeseries_dataset` is not implemented yet. "
         "Please implement the function to create a timeseries dataset."
     )
+    X, Y = [], []
+    total_samples = len(dataset) - n_past - n_future + 1
+    for i in range(total_samples):
+        X.append(dataset[i : i + n_past])
+        Y.append(dataset[i + n_past : i + n_past + n_future])
+    return np.array(X), np.array(Y)
+    return np.array(X), np.array(Y)
+    return X, Y
+    return np.array(X), np.array(Y)
+    
+
+    
+
+
 
 
 def adjust_dimensions(
