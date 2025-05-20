@@ -5,8 +5,10 @@ from sklearn.manifold import TSNE
 from enum import Enum
 import pandas as pd
 import numpy as np
+import joblib
 import umap
 import tqdm
+
 
 
 class reduction_techniques(Enum):
@@ -156,7 +158,7 @@ def create_timeseries_dataset(dataset, n_past, n_future):
     
 
     
-def scale_data(X_train: np.ndarray, X_test: np.ndarray, y_train :np.ndarray, y_test:np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def scale_data(X_train: np.ndarray, X_test: np.ndarray, y_train :np.ndarray, y_test:np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, StandardScaler, StandardScaler]:
     """
     Scales the data using StandardScaler.
     Args:
@@ -166,14 +168,15 @@ def scale_data(X_train: np.ndarray, X_test: np.ndarray, y_train :np.ndarray, y_t
         X_train (np.ndarray): The scaled tensor of features for the training data.
         X_test (np.ndarray): The scaled tensor of features for the testing data.
     """
-    scaler = StandardScaler()
-    X_train = scaler.fit_transform(X_train)
-    X_test = scaler.transform(X_test)
+    x_scaler = StandardScaler()
+    y_scaler = StandardScaler()
+    X_train = x_scaler.fit_transform(X_train)
+    X_test = x_scaler.transform(X_test)
+    
+    y_train = y_scaler.fit_transform(y_train)
+    y_test = y_scaler.transform(y_test)
 
-    y_train = scaler.fit_transform(y_train)
-    y_test = scaler.transform(y_test)
-
-    return X_train, X_test, y_train, y_test
+    return X_train, X_test, y_train, y_test, x_scaler, y_scaler
     
 
 
@@ -222,10 +225,11 @@ def adjust_dimensions(
 
 def main() -> int:
     """ """
-    pbar = tqdm.tqdm(total=7)
+    pbar = tqdm.tqdm(total=8)
 
     pbar.set_description("Init variables")
     ### init variables ###
+    global x_scaler, y_scaler
     input_path = "./dbs/preprocessing/"
     reduction_method = reduction_techniques.PCA
     n_steps: int = 14
@@ -245,12 +249,17 @@ def main() -> int:
 
     pbar.set_description("Scale data")
     ### scale data ###
-    X_tr, X_te, y_tr, y_te = scale_data(
+    X_tr, X_te, y_tr, y_te, x_scaler, y_scaler = scale_data(
         X_train=X_tr,
         X_test=X_te,
         y_train=y_tr,
         y_test=y_te,
     )
+    pbar.update(1)
+    
+    pbar.set_description("Saving Scaler")
+    ### save scaler ###
+    joblib.dump(y_scaler, "src\data\scalers\scalers.pkl")
     pbar.update(1)
 
     ### ~~~ EXPLORE ~~~ ###

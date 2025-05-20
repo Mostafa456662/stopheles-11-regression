@@ -1,11 +1,14 @@
 ### ~~~ GLOBAL IMPORTS ~~~ ###
+from sklearn.preprocessing import StandardScaler
 from tensorflow.keras.layers import LSTM, Dense
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dropout
 import matplotlib.pyplot as plt
 import tensorflow as tf
 import numpy as np
+import joblib
 import tqdm
+
 
 
 
@@ -68,6 +71,20 @@ def plot_history(history: tf.keras.callbacks.History) -> None:
     plt.legend()
     plt.show()
 
+def plot_predictions(model, X_test, y_test, y_scaler) -> None:
+    """
+    Plot the predictions of the model.
+    """
+    y_pred = model.predict(X_test)
+    y_pred_orig = y_scaler.inverse_transform(y_pred.reshape(-1, 1))
+    y_test_orig = y_scaler.inverse_transform(y_test.reshape(-1, 1))
+
+    plt.plot(y_test_orig, label='Actual')
+    plt.plot(y_pred_orig, label='Predicted')
+    plt.legend()
+    plt.title("Predictions vs Actual (Original Scale)")
+    plt.show()
+
 def save_model(model: tf.keras.Model, input_path = "src/models/my_model.keras") -> None:
     """
     Save the model to the specified path.
@@ -92,29 +109,35 @@ def main() -> int:
     6. show graph of history
     7. save the model
     """
-    pbar = tqdm.tqdm(total = 6)
+
+    y_scaler = joblib.load("src/data/scalers/")
+    print(y_scaler)
+    pbar = tqdm.tqdm(total = 7)
     # Load the dataset
     pbar.set_description("Loading dataset")
-    X_train, X_test, y_train, y_test = load_dataset()
+    X_tr, X_te, y_tr, y_te = load_dataset()
     pbar.update(1)
     # Create the model
     pbar.set_description("Creating model")
-    input_shape = (X_train.shape[1], X_train.shape[2])
+    input_shape = (X_tr.shape[1], X_tr.shape[2])
     model = create_model(input_shape)
     pbar.update(1)
     # Train the model
     pbar.set_description("Training model")
-    history = train_model(model, X_train, y_train)
+    history = train_model(model, X_tr, y_tr)
     pbar.update(1)
     # Test the model
     pbar.set_description("Testing model")
-    test_model(model, X_test, y_test)
+    test_model(model, X_te, y_te)
     pbar.update(1)
     # Plot the training history
     pbar.set_description("Plotting history")
     plot_history(history)
     pbar.update(1)
     
+    # Plotting test predictions
+    plot_predictions(model, X_te, y_te, y_scaler)
+
     # Save the model
     pbar.set_description("Saving model")
     save_model(model)
