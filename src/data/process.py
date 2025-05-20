@@ -5,6 +5,7 @@ from enum import Enum
 import pandas as pd
 import numpy as np
 import umap
+import tqdm
 
 
 class reduction_techniques(Enum):
@@ -118,7 +119,7 @@ def save_tensors(
     except Exception as e:
         print(f"Error saving tensors: {e}")
         return 1
-    ...
+    
 
 
 def create_timeseries_dataset(dataset, n_past, n_future):
@@ -133,16 +134,15 @@ def create_timeseries_dataset(dataset, n_past, n_future):
     Returns:
       A tuple containing the input features (trainX) and the target values (trainY).
     """
-    raise NotImplementedError(
-        "The function `create_timeseries_dataset` is not implemented yet. "
-        "Please implement the function to create a timeseries dataset."
-    )
+    time_points, n_features = dataset.shape
+
     X, y = [], []
-    total_samples = len(dataset) - n_past - n_future + 1
+    total_samples = time_points - n_past - n_future + 1
     for i in range(total_samples):
-        X.append(dataset[i : i + n_past])
-        y.append(dataset[i + n_past : i + n_past + n_future])
+        X.append(dataset[i : i + n_past])  # Past n_past time steps
+        y.append(dataset[i + n_past : i + n_past + n_future])  # Next n_future time steps
     return np.array(X), np.array(y)
+    
     
     
 
@@ -178,42 +178,54 @@ def adjust_dimensions(
         y_train (np.ndarray): The tensor of labels for the training data.
         y_test (np.ndarray): The tensor of labels for the testing data.
     """
-    raise NotImplementedError(
-        "The function `adjust_dimensions` is not implemented yet. "
-        "Please implement the function to adjust the dimensions of the tensors."
-    )
+    
+    X_test_dataset = np.hstack((X_test, y_test.reshape(-1, 1)))
+
+    X_train_dataset = np.hstack((X_train, y_train.reshape(-1, 1)))
+
+    # Create the time series dataset
+    X_train, y_train = create_timeseries_dataset(X_train_dataset, n_past=n_steps, n_future=1)
+    X_test, y_test = create_timeseries_dataset(X_test_dataset, n_past=n_steps, n_future=1)
+   
+    
     
 
-    
-    X_train_reshaped, y_train_adjusted = create_timeseries_dataset(X_train, y_train, n_steps)
-    X_test_reshaped, y_test_adjusted = create_timeseries_dataset(X_test, y_test, n_steps)
-
-    return X_train, X_test_, y_train, y_test
+    return X_train, X_test, y_train, y_test
 
 
 def main() -> int:
     """ """
+    pbar = tqdm.tqdm(total=6)
+
+    pbar.set_description("Init variables")
     ### init variables ###
     input_path = "./dbs/preprocessing/"
     reduction_method = reduction_techniques.PCA
     n_steps: int = 14
+    pbar.update(1)
 
+    pbar.set_description("Load dataframes")
     ### load dataframes ###
     tr_df, te_df = load_df(input_path=input_path)
+    pbar.update(1)
 
+    pbar.set_description("Convert to tensors")
     ### convert to tensors ###
     X_tr, y_tr = get_tensor(tr_df)
     X_te, y_te = get_tensor(te_df)
-
+    pbar.update(1)
+    
     ### ~~~ EXPLORE ~~~ ###
-    before_reduction_str: str = "before reduction"
-    print(f"{before_reduction_str:=^40}")
-    print(f"X_tr.dim = {X_tr.shape}")
-    print(f"X_te.dim = {X_te.shape}")
-    print(f"y_tr.dim = {y_tr.shape}")
-    print(f"y_te.dim = {y_te.shape}")
+    # before_reduction_str: str = "before reduction"
+    # print(f"{before_reduction_str:=^40}")
+    # print(f"X_tr.dim = {X_tr.shape}")
+    # print(f"X_te.dim = {X_te.shape}")
+    # print(f"y_tr.dim = {y_tr.shape}")
+    # print(f"y_te.dim = {y_te.shape}")
     ### ~~~ EXPLORE ~~~ ###
 
+
+    pbar.set_description("Reduce dimensions")
     ### reduce dimensions ###
     target_dim: int = X_tr.shape[1] // 2
     X_tr, X_te = reduce_feature_dimensions(
@@ -222,16 +234,19 @@ def main() -> int:
         method=reduction_method,
         n_components=target_dim,
     )
+    pbar.update(1)
 
     ### ~~~ EXPLORE ~~~ ###
-    after_reduction_str: str = "after reduction"
-    print(f"{after_reduction_str:=^40}")
-    print(f"X_tr.dim = {X_tr.shape}")
-    print(f"X_te.dim = {X_te.shape}")
-    print(f"y_tr.dim = {y_tr.shape}")
-    print(f"y_te.dim = {y_te.shape}")
+    # after_reduction_str: str = "after reduction"
+    # print(f"{after_reduction_str:=^40}")
+    # print(f"X_tr.dim = {X_tr.shape}")
+    # print(f"X_te.dim = {X_te.shape}")
+    # print(f"y_tr.dim = {y_tr.shape}")
+    # print(f"y_te.dim = {y_te.shape}")
     ### ~~~ EXPLORE ~~~ ###
 
+
+    pbar.set_description("Adjust dimensions")
     ### adjust dimensions ###
     X_tr, X_te, y_tr, y_te = adjust_dimensions(
         X_train=X_tr,
@@ -240,13 +255,29 @@ def main() -> int:
         y_test=y_te,
         n_steps=n_steps,
     )
-    ### ~~~ EXPLORE ~~~ ###
-    print(f"X_tr.dim = {X_tr.shape}")
-    print(f"X_te.dim = {X_te.shape}")
-    print(f"y_tr.dim = {y_tr.shape}")
-    print(f"y_te.dim = {y_te.shape}")
+    pbar.update(1)
+    
+     ### ~~~ EXPLORE ~~~ ###
+    # time_series_data: str = ""
+    # print(f"{time_series_data:=^40}")
+    # print(f"X_tr.dim = {X_tr.shape}")
+    # print(f"X_te.dim = {X_te.shape}")
+    # print(f"y_tr.dim = {y_tr.shape}")
+    # print(f"y_te.dim = {y_te.shape}")
     ### ~~~ EXPLORE ~~~ ###
 
+    
+    ### save tensors ###
+    pbar.set_description("Save tensors")
+    save_tensors(
+        X_train=X_tr,
+        X_test=X_te,
+        y_train=y_tr,
+        y_test=y_te,
+    )
+    pbar.update(1)
+
+    pbar.close()
     return 0
 
 
