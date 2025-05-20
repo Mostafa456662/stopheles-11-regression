@@ -1,4 +1,5 @@
 ### ~~~ GLOBAL IMPORTS ~~~ ###
+from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from enum import Enum
@@ -80,9 +81,17 @@ def reduce_feature_dimensions(
         X_train = pca.fit_transform(X_train)
         X_test = pca.transform(X_test)
     elif method == reduction_techniques.TSNE:
-        tsne = TSNE(n_components=n_components, random_state=42)
-        X_train = tsne.fit_transform(X_train)
-        X_test = tsne.transform(X_test)
+        tsne = TSNE(n_components=n_components, random_state=42,  )
+        X_combined = np.vstack([X_train, X_test])
+
+        # Fit and transform combined data
+        X_combined_embedded = tsne.fit_transform(X_combined)
+
+        # Split back into train and test embeddings
+        X_train = X_combined_embedded[:len(X_train)]
+        X_test = X_combined_embedded[len(X_train):]
+
+        
     return X_train, X_test
 
 
@@ -90,7 +99,7 @@ def save_tensors(
     X_train: np.ndarray,
     X_test: np.ndarray,
     y_train: np.ndarray,
-    y_test: np.ndarray,
+    y_test: np.ndarray, 
     output_path: str = "./dbs/cooked/",
 ) -> int:
     """
@@ -147,7 +156,25 @@ def create_timeseries_dataset(dataset, n_past, n_future):
     
 
     
+def scale_data(X_train: np.ndarray, X_test: np.ndarray, y_train :np.ndarray, y_test:np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Scales the data using StandardScaler.
+    Args:
+        X_train (np.ndarray): The tensor of features for the training data.
+        X_test (np.ndarray): The tensor of features for the testing data.
+    Returns:
+        X_train (np.ndarray): The scaled tensor of features for the training data.
+        X_test (np.ndarray): The scaled tensor of features for the testing data.
+    """
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_test = scaler.transform(X_test)
 
+    y_train = scaler.fit_transform(y_train)
+    y_test = scaler.transform(y_test)
+
+    return X_train, X_test, y_train, y_test
+    
 
 
 
@@ -195,7 +222,7 @@ def adjust_dimensions(
 
 def main() -> int:
     """ """
-    pbar = tqdm.tqdm(total=6)
+    pbar = tqdm.tqdm(total=7)
 
     pbar.set_description("Init variables")
     ### init variables ###
@@ -215,6 +242,17 @@ def main() -> int:
     X_te, y_te = get_tensor(te_df)
     pbar.update(1)
     
+
+    pbar.set_description("Scale data")
+    ### scale data ###
+    X_tr, X_te, y_tr, y_te = scale_data(
+        X_train=X_tr,
+        X_test=X_te,
+        y_train=y_tr,
+        y_test=y_te,
+    )
+    pbar.update(1)
+
     ### ~~~ EXPLORE ~~~ ###
     # before_reduction_str: str = "before reduction"
     # print(f"{before_reduction_str:=^40}")
@@ -223,8 +261,6 @@ def main() -> int:
     # print(f"y_tr.dim = {y_tr.shape}")
     # print(f"y_te.dim = {y_te.shape}")
     ### ~~~ EXPLORE ~~~ ###
-
-
     pbar.set_description("Reduce dimensions")
     ### reduce dimensions ###
     target_dim: int = X_tr.shape[1] // 2
@@ -235,6 +271,7 @@ def main() -> int:
         n_components=target_dim,
     )
     pbar.update(1)
+
 
     ### ~~~ EXPLORE ~~~ ###
     # after_reduction_str: str = "after reduction"
