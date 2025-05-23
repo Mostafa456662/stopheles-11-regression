@@ -133,25 +133,43 @@ def save_tensors(
     
 
 
+# def create_timeseries_dataset(dataset, n_past, n_future):
+#     """
+#     Creates a timeseries dataset for training or testing a model.
+
+#     Args:
+#       dataset: The original dataset.
+#       n_past: The number of past time steps to use as input.
+#       n_future: The number of future time steps to predict.
+
+#     Returns:
+#       A tuple containing the input features (trainX) and the target values (trainY).
+#     """
+#     time_points, n_features = dataset.shape
+
+#     X, y = [], []
+#     total_samples = time_points - n_past - n_future + 1
+#     for i in range(total_samples):
+#         X.append(dataset[i : i + n_past])  # Past n_past time steps
+#         y.append(dataset[i + n_past : i + n_past + n_future])  # Next n_future time steps
+#     return np.array(X), np.array(y)
 def create_timeseries_dataset(dataset, n_past, n_future):
     """
     Creates a timeseries dataset for training or testing a model.
-
     Args:
-      dataset: The original dataset.
-      n_past: The number of past time steps to use as input.
-      n_future: The number of future time steps to predict.
-
+        dataset: The original dataset (features + target).
+        n_past: The number of past time steps to use as input.
+        n_future: The number of future time steps to predict.
     Returns:
-      A tuple containing the input features (trainX) and the target values (trainY).
+        A tuple containing the input features (trainX) and the target values (trainY).
     """
     time_points, n_features = dataset.shape
-
     X, y = [], []
     total_samples = time_points - n_past - n_future + 1
     for i in range(total_samples):
         X.append(dataset[i : i + n_past])  # Past n_past time steps
-        y.append(dataset[i + n_past : i + n_past + n_future])  # Next n_future time steps
+        
+        y.append(dataset[i + n_past : i + n_past + n_future,-1])  # Next n_future time steps for target
     return np.array(X), np.array(y)
     
     
@@ -168,6 +186,8 @@ def scale_data(X_train: np.ndarray, X_test: np.ndarray, y_train :np.ndarray, y_t
         X_train (np.ndarray): The scaled tensor of features for the training data.
         X_test (np.ndarray): The scaled tensor of features for the testing data.
     """
+    
+
     x_scaler = StandardScaler()
     y_scaler = StandardScaler()
     X_train = x_scaler.fit_transform(X_train)

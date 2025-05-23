@@ -34,8 +34,8 @@ def create_model(input_shape: tuple[int, int]) -> tf.keras.Model:
     returns: "tf.keras.Model" the model
     """
     model = Sequential()
-    model.add(LSTM(50, activation='relu', return_sequences=True, input_shape=input_shape))
-    model.add(LSTM(50, return_sequences=True, activation='relu'))
+    model.add(LSTM(50, return_sequences=True, input_shape=input_shape))
+    model.add(LSTM(50, return_sequences=True))
     model.add(Dropout(0.2))
     model.add(Dense(1))
     
@@ -46,7 +46,9 @@ def train_model(model: tf.keras.Model, X_train: np.ndarray, y_train: np.ndarray)
     Train the model with the given training data.
     returns: "tf.keras.callbacks.History" the history of the training
     """
-    history = model.fit(X_train, y_train, epochs=50, batch_size=32, validation_split=0.2)
+    early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+   
+    history = model.fit(X_train, y_train, epochs=5, batch_size=32, validation_split=0.2, callbacks=[early_stopping])
     return history
     
 
@@ -73,16 +75,25 @@ def plot_history(history: tf.keras.callbacks.History) -> None:
 
 def plot_predictions(model, X_test, y_test, y_scaler) -> None:
     """
-    Plot the predictions of the model.
+    Plot the last 50 predictions of the model.
     """
     y_pred = model.predict(X_test)
+
     y_pred_orig = y_scaler.inverse_transform(y_pred.reshape(-1, 1))
     y_test_orig = y_scaler.inverse_transform(y_test.reshape(-1, 1))
 
-    plt.plot(y_test_orig, label='Actual')
-    plt.plot(y_pred_orig, label='Predicted')
+    # Get the last 50 predictions and actual values
+    y_pred_last = y_pred_orig[:50]
+    y_test_last = y_test_orig[:50]
+
+    plt.plot(y_test_last, label='Actual')
+    plt.plot(y_pred_last, label='Predicted')
     plt.legend()
-    plt.title("Predictions vs Actual (Original Scale)")
+    plt.title("Last 50 Predictions vs Actual (Original Scale)")
+    plt.xlabel("Time step")
+    plt.ylabel("Value")
+    plt.grid(True)
+    plt.tight_layout()
     plt.show()
 
 def save_model(model: tf.keras.Model, input_path = "src/models/my_model.keras") -> None:
@@ -109,9 +120,9 @@ def main() -> int:
     6. show graph of history
     7. save the model
     """
+    # Load the scaler
+    y_scaler = joblib.load("src/data/scalers/scalers.pkl")
 
-    y_scaler = joblib.load("src/data/scalers/")
-    print(y_scaler)
     pbar = tqdm.tqdm(total = 7)
     # Load the dataset
     pbar.set_description("Loading dataset")
@@ -136,7 +147,9 @@ def main() -> int:
     pbar.update(1)
     
     # Plotting test predictions
+    pbar.set_description("Plotting predictions")
     plot_predictions(model, X_te, y_te, y_scaler)
+    pbar.update(1)
 
     # Save the model
     pbar.set_description("Saving model")
