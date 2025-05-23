@@ -1,11 +1,14 @@
 ### ~~~ GLOBAL IMPORTS ~~~ ###
+from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from enum import Enum
 import pandas as pd
 import numpy as np
-import torch
+import joblib
 import umap
+import tqdm
+
 
 
 class reduction_techniques(Enum):
@@ -42,15 +45,12 @@ def get_tensor(df: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
         X (np.ndarray): The tensor of features. with shape (n_samples, n_features).
         y (np.ndarray): The tensor of labels. with shape (n_samples, n_labels).
     """
-    # extract label
-    y = torch.tensor(df["spain"].values.reshape(-1, 1), dtype=torch.float32)
-    # extract features
-    X = torch.tensor(df.drop(columns=["spain"]).values, dtype=torch.float32)
-
-    # convert to numpy arrays
-    X = X.numpy()
-    y = y.numpy()
-
+    # Extract labels (spain column) and reshape to (n_samples, 1)
+    y = df["spain"].to_numpy().reshape(-1, 1).astype(np.float32)
+    
+    # Extract features (all columns except spain)
+    X = df.drop(columns=["spain"]).to_numpy().astype(np.float32)
+    
     return X, y
 
 
@@ -83,9 +83,17 @@ def reduce_feature_dimensions(
         X_train = pca.fit_transform(X_train)
         X_test = pca.transform(X_test)
     elif method == reduction_techniques.TSNE:
-        tsne = TSNE(n_components=n_components, random_state=42)
-        X_train = tsne.fit_transform(X_train)
-        X_test = tsne.transform(X_test)
+        tsne = TSNE(n_components=n_components, random_state=42,  )
+        X_combined = np.vstack([X_train, X_test])
+
+        # Fit and transform combined data
+        X_combined_embedded = tsne.fit_transform(X_combined)
+
+        # Split back into train and test embeddings
+        X_train = X_combined_embedded[:len(X_train)]
+        X_test = X_combined_embedded[len(X_train):]
+
+        
     return X_train, X_test
 
 
@@ -93,7 +101,7 @@ def save_tensors(
     X_train: np.ndarray,
     X_test: np.ndarray,
     y_train: np.ndarray,
-    y_test: np.ndarray,
+    y_test: np.ndarray, 
     output_path: str = "./dbs/cooked/",
 ) -> int:
     """
@@ -122,25 +130,75 @@ def save_tensors(
     except Exception as e:
         print(f"Error saving tensors: {e}")
         return 1
-    ...
+    
 
 
+# def create_timeseries_dataset(dataset, n_past, n_future):
+#     """
+#     Creates a timeseries dataset for training or testing a model.
+
+#     Args:
+#       dataset: The original dataset.
+#       n_past: The number of past time steps to use as input.
+#       n_future: The number of future time steps to predict.
+
+#     Returns:
+#       A tuple containing the input features (trainX) and the target values (trainY).
+#     """
+#     time_points, n_features = dataset.shape
+
+#     X, y = [], []
+#     total_samples = time_points - n_past - n_future + 1
+#     for i in range(total_samples):
+#         X.append(dataset[i : i + n_past])  # Past n_past time steps
+#         y.append(dataset[i + n_past : i + n_past + n_future])  # Next n_future time steps
+#     return np.array(X), np.array(y)
 def create_timeseries_dataset(dataset, n_past, n_future):
     """
     Creates a timeseries dataset for training or testing a model.
-
     Args:
-      dataset: The original dataset.
-      n_past: The number of past time steps to use as input.
-      n_future: The number of future time steps to predict.
-
+        dataset: The original dataset (features + target).
+        n_past: The number of past time steps to use as input.
+        n_future: The number of future time steps to predict.
     Returns:
-      A tuple containing the input features (trainX) and the target values (trainY).
+        A tuple containing the input features (trainX) and the target values (trainY).
     """
-    raise NotImplementedError(
-        "The function `create_timeseries_dataset` is not implemented yet. "
-        "Please implement the function to create a timeseries dataset."
-    )
+    time_points, n_features = dataset.shape
+    X, y = [], []
+    total_samples = time_points - n_past - n_future + 1
+    for i in range(total_samples):
+        X.append(dataset[i : i + n_past])  # Past n_past time steps
+        
+        y.append(dataset[i + n_past : i + n_past + n_future,-1])  # Next n_future time steps for target
+    return np.array(X), np.array(y)
+    
+    
+    
+
+    
+def scale_data(X_train: np.ndarray, X_test: np.ndarray, y_train :np.ndarray, y_test:np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, StandardScaler, StandardScaler]:
+    """
+    Scales the data using StandardScaler.
+    Args:
+        X_train (np.ndarray): The tensor of features for the training data.
+        X_test (np.ndarray): The tensor of features for the testing data.
+    Returns:
+        X_train (np.ndarray): The scaled tensor of features for the training data.
+        X_test (np.ndarray): The scaled tensor of features for the testing data.
+    """
+    
+
+    x_scaler = StandardScaler()
+    y_scaler = StandardScaler()
+    X_train = x_scaler.fit_transform(X_train)
+    X_test = x_scaler.transform(X_test)
+    
+    y_train = y_scaler.fit_transform(y_train)
+    y_test = y_scaler.transform(y_test)
+
+    return X_train, X_test, y_train, y_test, x_scaler, y_scaler
+    
+
 
 
 def adjust_dimensions(
@@ -170,35 +228,69 @@ def adjust_dimensions(
         y_train (np.ndarray): The tensor of labels for the training data.
         y_test (np.ndarray): The tensor of labels for the testing data.
     """
-    raise NotImplementedError(
-        "The function `adjust_dimensions` is not implemented yet. "
-        "Please implement the function to adjust the dimensions of the tensors."
-    )
+    
+    X_test_dataset = np.hstack((X_test, y_test.reshape(-1, 1)))
+
+    X_train_dataset = np.hstack((X_train, y_train.reshape(-1, 1)))
+
+    # Create the time series dataset
+    X_train, y_train = create_timeseries_dataset(X_train_dataset, n_past=n_steps, n_future=1)
+    X_test, y_test = create_timeseries_dataset(X_test_dataset, n_past=n_steps, n_future=1)
+   
+    
+    
+
+    return X_train, X_test, y_train, y_test
 
 
 def main() -> int:
     """ """
+    pbar = tqdm.tqdm(total=8)
+
+    pbar.set_description("Init variables")
     ### init variables ###
+    global x_scaler, y_scaler
     input_path = "./dbs/preprocessing/"
     reduction_method = reduction_techniques.PCA
     n_steps: int = 14
+    pbar.update(1)
 
+    pbar.set_description("Load dataframes")
     ### load dataframes ###
     tr_df, te_df = load_df(input_path=input_path)
+    pbar.update(1)
 
+    pbar.set_description("Convert to tensors")
     ### convert to tensors ###
     X_tr, y_tr = get_tensor(tr_df)
     X_te, y_te = get_tensor(te_df)
+    pbar.update(1)
+    
+
+    pbar.set_description("Scale data")
+    ### scale data ###
+    X_tr, X_te, y_tr, y_te, x_scaler, y_scaler = scale_data(
+        X_train=X_tr,
+        X_test=X_te,
+        y_train=y_tr,
+        y_test=y_te,
+    )
+    pbar.update(1)
+    
+    pbar.set_description("Saving Scaler")
+    ### save scaler ###
+    joblib.dump(y_scaler, "src\data\scalers\scalers.pkl")
+    pbar.update(1)
 
     ### ~~~ EXPLORE ~~~ ###
-    before_reduction_str: str = "before reduction"
-    print(f"{before_reduction_str:=^40}")
-    print(f"X_tr.dim = {X_tr.shape}")
-    print(f"X_te.dim = {X_te.shape}")
-    print(f"y_tr.dim = {y_tr.shape}")
-    print(f"y_te.dim = {y_te.shape}")
+    # before_reduction_str: str = "before reduction"
+    # print(f"{before_reduction_str:=^40}")
+    # print(f"X_tr.dim = {X_tr.shape}")
+    # print(f"X_te.dim = {X_te.shape}")
+    # print(f"y_tr.dim = {y_tr.shape}")
+    # print(f"y_te.dim = {y_te.shape}")
     ### ~~~ EXPLORE ~~~ ###
-
+    pbar.set_description("Reduce dimensions")
     ### reduce dimensions ###
     target_dim: int = X_tr.shape[1] // 2
     X_tr, X_te = reduce_feature_dimensions(
@@ -207,16 +299,20 @@ def main() -> int:
         method=reduction_method,
         n_components=target_dim,
     )
+    pbar.update(1)
+
 
     ### ~~~ EXPLORE ~~~ ###
-    after_reduction_str: str = "after reduction"
-    print(f"{after_reduction_str:=^40}")
-    print(f"X_tr.dim = {X_tr.shape}")
-    print(f"X_te.dim = {X_te.shape}")
-    print(f"y_tr.dim = {y_tr.shape}")
-    print(f"y_te.dim = {y_te.shape}")
+    # after_reduction_str: str = "after reduction"
+    # print(f"{after_reduction_str:=^40}")
+    # print(f"X_tr.dim = {X_tr.shape}")
+    # print(f"X_te.dim = {X_te.shape}")
+    # print(f"y_tr.dim = {y_tr.shape}")
+    # print(f"y_te.dim = {y_te.shape}")
     ### ~~~ EXPLORE ~~~ ###
 
+
+    pbar.set_description("Adjust dimensions")
     ### adjust dimensions ###
     X_tr, X_te, y_tr, y_te = adjust_dimensions(
         X_train=X_tr,
@@ -225,7 +321,29 @@ def main() -> int:
         y_test=y_te,
         n_steps=n_steps,
     )
+    pbar.update(1)
+    
+     ### ~~~ EXPLORE ~~~ ###
+    # time_series_data: str = ""
+    # print(f"{time_series_data:=^40}")
+    # print(f"X_tr.dim = {X_tr.shape}")
+    # print(f"X_te.dim = {X_te.shape}")
+    # print(f"y_tr.dim = {y_tr.shape}")
+    # print(f"y_te.dim = {y_te.shape}")
+    ### ~~~ EXPLORE ~~~ ###
 
+    
+    ### save tensors ###
+    pbar.set_description("Save tensors")
+    save_tensors(
+        X_train=X_tr,
+        X_test=X_te,
+        y_train=y_tr,
+        y_test=y_te,
+    )
+    pbar.update(1)
+
+    pbar.close()
     return 0
 
 
